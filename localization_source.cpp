@@ -76,7 +76,14 @@ double distance(const vector<double>& v1, const vector<double>& v2);
 //实现k-临近算法
 vector<int> knnsearch(vector<vector<double>> testData, vector<double> targetData, int k);
 //判断点是否落入多边形内
+vector<bool> inpolygon(const vector<vector<double>>& pointData, const vector<int>& optionalTagFlag, const vector<vector<double>>& testData,const int& numOfTag);
+//判断点是否落入多边形内
 vector<bool> inpolygon(const vector<double>& pointX, const vector<double>& pointY, const vector<double>& lineX, const vector<double>& lineY);
+//找到里程计的时间在视觉时间序列中的前后两个最近的位姿点
+int findpso(const vector<double>& visionTimeDiff, const vector<double>& odometerTimeDiff, const int& index, bool& flag);
+int findpre(const vector<double>& visionTimeDiff, const vector<double>& odometerTimeDiff, const int& index, bool& flag);
+//计算机器人所在大致范围（用于初始化粒子）
+vector<vector<double>> calPF_Scope(vector<vector<double>>& referenceTag, vector<int>& randData, vector<int>& colLeft, vector<int>& colRight);
 int main()
 {
 	//系统数据设定
@@ -544,31 +551,11 @@ int main()
 			mobileRobotPoseVisionRight[i][j] = myVisionCurrent_AGV[j][0];
 	for (int j = 0; j < odometerTimeDiff.size(); ++j)
 	{
-		int pointPre = 0;
-		int pointPso = 0;
-		bool preFlag = false;
-		bool psoFlag = false;
 		//先找到 里程计的时间 在 视觉时间序列中 的 前后两个最近 的位姿点
-		for (auto it = visionTimeDiff.begin(); it != visionTimeDiff.end(); ++it)
-		{
-			if ((*it) >= odometerTimeDiff[j] && !psoFlag)
-			{
-				pointPso = it - visionTimeDiff.begin();
-				psoFlag = true;
-			}
-			if (psoFlag)
-				break;
-		}
-		for (auto it = visionTimeDiff.end() - 1; it >= visionTimeDiff.begin(); --it)
-		{
-			if (((*it) <= odometerTimeDiff[j]) && !preFlag)
-			{
-				pointPre = it - visionTimeDiff.begin();
-				preFlag = true;
-			}
-			if (preFlag)
-				break;
-		}
+		bool preFlag = false;
+		int pointPre = findpre(visionTimeDiff, odometerTimeDiff, j, preFlag);
+		bool psoFlag = false;
+		int pointPso = findpso(visionTimeDiff, odometerTimeDiff, j, psoFlag);
 		if (psoFlag)
 			for (int i = 0; i < 4; ++i)
 				mobileRobotPoseVisionRight[j + odometerRightStartPoint - 1][i] = (odometerTimeDiff[j] - visionTimeDiff[pointPso]) / (visionTimeDiff[pointPre] - visionTimeDiff[pointPso]) * myVisionCurrent_AGV[i][pointPre] + (odometerTimeDiff[j] - visionTimeDiff[pointPre]) / (visionTimeDiff[pointPso] - visionTimeDiff[pointPre]) * myVisionCurrent_AGV[i][pointPso];
@@ -622,31 +609,11 @@ int main()
 			mobileRobotPoseVisionLeft[i][j] = myVisionCurrent_AGV[j][0];
 	for (int j = 0; j < odometerTimeDiff.size(); ++j)
 	{
-		int pointPre = 0;
-		int pointPso = 0;
-		bool preFlag = false;
-		bool psoFlag = false;
 		//先找到 里程计的时间 在 视觉时间序列中 的 前后两个最近 的位姿点
-		for (auto it = visionTimeDiff.begin(); it != visionTimeDiff.end(); ++it)
-		{
-			if ((*it) >= odometerTimeDiff[j] && !psoFlag)
-			{
-				pointPso = it - visionTimeDiff.begin();
-				psoFlag = true;
-			}
-			if (psoFlag)
-				break;
-		}
-		for (auto it = visionTimeDiff.end() - 1; it != visionTimeDiff.begin(); --it)
-		{
-			if ((*it <= odometerTimeDiff[j]) && !preFlag)
-			{
-				pointPre = it - visionTimeDiff.begin();
-				preFlag = true;
-			}
-			if (preFlag)
-				break;
-		}
+		bool preFlag = false;
+		int pointPre = findpre(visionTimeDiff, odometerTimeDiff, j, preFlag);
+		bool psoFlag = false;
+		int pointPso = findpso(visionTimeDiff, odometerTimeDiff, j, psoFlag);
 		if (psoFlag)
 			for (int i = 0; i < 4; ++i)
 				mobileRobotPoseVisionLeft[j + odometerLeftStartPoint - 1][i] = (odometerTimeDiff[j] - visionTimeDiff[pointPso]) / (visionTimeDiff[pointPre] - visionTimeDiff[pointPso]) * myVisionCurrent_AGV[i][pointPre] + (odometerTimeDiff[j] - visionTimeDiff[pointPre]) / (visionTimeDiff[pointPso] - visionTimeDiff[pointPre]) * myVisionCurrent_AGV[i][pointPso];
@@ -694,14 +661,14 @@ int main()
 	vector<vector<vector<double>>> PF_ParticleAntennaRight(Times, vector<vector<double>>(2, vector<double>(PF_Count)));
 
 	//观测：保存左天线两个时刻之间的相位差值,以行排列
-	vector<double> PF_ObserveGradientLeft(referenceTag.size());
+	vector<double> PF_ObserveGradientLeft(referenceTagNum);
 	//观测：保存右天线两个时刻之间的相位差值,以行排列
-	vector<double> PF_ObserveGradientRight(referenceTag.size());
+	vector<double> PF_ObserveGradientRight(referenceTagNum);
 
 	//预测：第1行是左天线前一个时刻点的相位（解缠相位），第2行是左天线当前时刻点的相位（解缠相位），第3为左天线两个时刻之间的相位差值
-	vector<vector<vector<double>>> PF_PredictionLeft(referenceTag.size(), vector<vector<double>>(3, vector<double>(PF_Count)));
+	vector<vector<vector<double>>> PF_PredictionLeft(referenceTagNum, vector<vector<double>>(3, vector<double>(PF_Count)));
 	//预测：第1行是右天线前一个时刻点的相位（解缠相位），第2行是右天线当前时刻点的相位（解缠相位），第3为右天线两个时刻之间的相位差值
-	vector<vector<vector<double>>> PF_PredictionRight(referenceTag.size(), vector<vector<double>>(3, vector<double>(PF_Count)));
+	vector<vector<vector<double>>> PF_PredictionRight(referenceTagNum, vector<vector<double>>(3, vector<double>(PF_Count)));
 
 	//单位cm
 	int gradientLen = 2;
@@ -714,13 +681,13 @@ int main()
 	//测量噪声，方差，单位rad
 	double PF_R = (PhaseGauss + 0.4) * (PhaseGauss + 0.4);
 	//粒子与观测值之间的差距,每一行对应一个参考标签
-	vector<vector<double>> PF_DistanceLeft(referenceTag.size(), vector<double>(PF_Count));
+	vector<vector<double>> PF_DistanceLeft(referenceTagNum, vector<double>(PF_Count));
 	//粒子与观测值之间的差距,每一行对应一个参考标签
-	vector<vector<double>> PF_DistanceRight(referenceTag.size(), vector<double>(PF_Count));
+	vector<vector<double>> PF_DistanceRight(referenceTagNum, vector<double>(PF_Count));
 	//粒子与观测值之间的权重因子，第三行用于综合评价
-	vector<vector<double>> PF_W_Left(referenceTag.size(), vector<double>(PF_Count));
+	vector<vector<double>> PF_W_Left(referenceTagNum, vector<double>(PF_Count));
 	//粒子与观测值之间的权重因子，第三行用于综合评价
-	vector<vector<double>> PF_W_Right(referenceTag.size(), vector<double>(PF_Count));
+	vector<vector<double>> PF_W_Right(referenceTagNum, vector<double>(PF_Count));
 	//第一行：本次观测得权重；第二行：本次最终的权重
 	vector<vector<vector<double>>> PF_W(Times, vector<vector<double>>(2, vector<double>(PF_Count)));
 	//协方差矩阵
@@ -1316,7 +1283,7 @@ int main()
 
 				//参考标签与阴影区的关系
 				//参考标签是否在阴影区内
-				vector<double> xPointLeft(PF_TagReadableCount);
+				/*vector<double> xPointLeft(PF_TagReadableCount);
 				vector<double> yPointLeft(PF_TagReadableCount);
 				for (int k = 0; k < PF_TagReadableCount; ++k)
 				{
@@ -1330,10 +1297,11 @@ int main()
 					xLineLeft[k] = PF_ParticleShadowLeftCurrent[k][2];
 					yLineLeft[k] = PF_ParticleShadowLeftCurrent[k][3];
 				}
-				vector<bool> leftInpolygonReadableFlag = inpolygon(xPointLeft, yPointLeft, xLineLeft, yLineLeft);
+				vector<bool> leftInpolygonReadableFlag = inpolygon(xPointLeft, yPointLeft, xLineLeft, yLineLeft);*/
+				vector<bool> leftInpolygonReadableFlag = inpolygon(referenceTag, optionalTagLeftFlag, PF_ParticleShadowLeftCurrent, PF_TagReadableCount);
 
 				//参考标签是否在阴影区内
-				vector<double> xPointRight(PF_TagReadableCount);
+				/*vector<double> xPointRight(PF_TagReadableCount);
 				vector<double> yPointRight(PF_TagReadableCount);
 				for (int k = 0; k < PF_TagReadableCount; ++k)
 				{
@@ -1347,7 +1315,8 @@ int main()
 					xLineRight[k] = PF_ParticleShadowRightCurrent[k][2];
 					yLineRight[k] = PF_ParticleShadowRightCurrent[k][3];
 				}
-				vector<bool> rightInpolygonReadableFlag = inpolygon(xPointRight, yPointRight, xLineRight, yLineRight);
+				vector<bool> rightInpolygonReadableFlag = inpolygon(xPointRight, yPointRight, xLineRight, yLineRight);*/
+				vector<bool> rightInpolygonReadableFlag = inpolygon(referenceTag, optionalTagRightFlag, PF_ParticleShadowRightCurrent, PF_TagReadableCount);
 
 				for (int k = 0; k < PF_TagReadableCount; ++k)
 					//左右天线都未读到
@@ -2260,4 +2229,112 @@ vector<bool> inpolygon(const vector<double>& xp, const vector<double>& yp, const
 		result[i] = flag;
 	}
 	return result;
+}
+vector<bool> inpolygon(const vector<vector<double>>& pointData, const vector<int>& optionalTagFlag, const vector<vector<double>>& testData,const int& numOfTag);
+{
+	vector<double> xPoint(numOfTag);
+	vector<double> yPoint(numOfTag);
+	for (int k = 0; k < numOfTag; ++k)
+	{
+		xPoint[k] = pointData[optionalTagFlag[k]][0];
+		yPoint[k] = pointData[optionalTagFlag[k]][1];
+	}
+	vector<double> xLine(4);
+	vector<double> yLine(4);
+	for (int k = 0; k < 4; ++k)
+	{
+		xLine[k] = testData[k][2];
+		yLine[k] = testData[k][3];
+	}
+
+	//开始k-近邻算法
+	vector<bool> result(numOfTag);
+	for (int i = 0; i < numOfTag; ++i)
+	{
+		bool flag = false;	   //判断结果（true；点落在多边形内；false:点未落在多边形内）
+		int k = testData.size() - 1; //是多边形的最后一个顶点
+		for (int j = 0; j < testData.size(); ++j)
+		{
+			//判断点是否在线段的两侧
+			if ((yLine[j] < yPoint[i] && yLine[k] >= yPoint[i]) || (yLine[k] < yPoint[i] && yLine[j] >= yPoint[i]))
+			{
+				//根据两点式方程计算出过点P且平行于X轴的直线与线段的交点，两点式方程：x = x1 +  (y - y1) * (x2 - x1) / (y2 - y1);
+				if (xLine[j] + (yPoint[i] - yLine[j]) * (xLine[k] - xLine[j]) / (yLine[k] - yLine[j]) < xPoint[i])
+					flag = !flag;
+			}
+			//进行下一线段判断
+			k = j;
+		}
+		result[i] = flag;
+	}
+	return result;
+}
+//找到里程计的时间在视觉时间序列中的前后两个最近的位姿点
+int findpso(const vector<double>& visionTimeDiff, const vector<double>& odometerTimeDiff, const int& index, bool& flag)
+{
+	int point = 0;
+	for (auto it = visionTimeDiff.begin(); it != visionTimeDiff.end(); ++it)
+	{
+		if ((*it) >= odometerTimeDiff[index] && !flag)
+		{
+			point = it - visionTimeDiff.begin();
+			flag = true;
+		}
+		if (flag)
+			break;
+	}
+	return point;
+}
+int findpre(const vector<double>& visionTimeDiff, const vector<double>& odometerTimeDiff, const int& index, bool& flag)
+{
+	int point = 0;
+	for (auto it = visionTimeDiff.end() - 1; it >= visionTimeDiff.begin(); --it)
+	{
+		if (((*it) <= odometerTimeDiff[index]) && !flag)
+		{
+			point = it - visionTimeDiff.begin();
+			flag = true;
+		}
+		if (flag)
+			break;
+	}
+	return point;
+}
+//计算机器人所在大致范围（用于初始化粒子）
+vector<vector<double>> calPF_Scope(vector<vector<double>>& referenceTag, vector<int>& randData, vector<int>& colLeft, vector<int>& colRight)
+{
+	vector<vector<double>> PF_Scope(2, vector<double>(2));
+	double leftMax = referenceTag[colLeft[0]][0];
+	for (auto x : colLeft)
+		leftMax = max(leftMax, referenceTag[x][0]);
+	double rightMax = referenceTag[colRight[0]][0];
+	for (auto x : colRight)
+		rightMax = max(rightMax, referenceTag[x][0]);
+	PF_Scope[0][0] = max(leftMax, rightMax) - 160 + randData[0];
+
+	double leftMin = referenceTag[colLeft[0]][0];
+	for (auto x : colLeft)
+		leftMin = min(leftMin, referenceTag[x][0]);
+	double rightMin = referenceTag[colRight[0]][0];
+	for (auto x : colRight)
+		rightMin = min(rightMin, referenceTag[x][0]);
+	PF_Scope[0][1] = min(leftMin, rightMin) + 160 + randData[2];
+
+	leftMax = referenceTag[colLeft[0]][1];
+	for (auto x : colLeft)
+		leftMax = max(leftMax, referenceTag[x][1]);
+	rightMax = referenceTag[colRight[0]][1];
+	for (auto x : colRight)
+		rightMax = max(rightMax, referenceTag[x][1]);
+	PF_Scope[1][0] = max(leftMax, rightMax) - 160 + randData[1];
+
+	leftMin = referenceTag[colLeft[0]][1];
+	for (auto x : colLeft)
+		leftMin = min(leftMin, referenceTag[x][1]);
+	rightMin = referenceTag[colRight[0]][1];
+	for (auto x : colRight)
+		rightMin = min(rightMin, referenceTag[x][1]);
+	PF_Scope[1][1] = min(leftMin, rightMin) + 160 + randData[3];
+
+	return PF_Scope;
 }
