@@ -2203,7 +2203,7 @@ vector<bool> inpolygon(const vector<double>& xp, const vector<double>& yp, const
 	}
 	return result;
 }
-vector<bool> inpolygon(const vector<vector<double>>& pointData, const vector<int>& optionalTagFlag, const vector<vector<double>>& testData,const int& numOfTag);
+vector<bool> inpolygon(const vector<vector<double>>& pointData, const vector<int>& optionalTagFlag, const vector<vector<double>>& testData,const int& numOfTag)
 {
 	vector<double> xPoint(numOfTag);
 	vector<double> yPoint(numOfTag);
