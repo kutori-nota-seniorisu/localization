@@ -885,37 +885,10 @@ int main()
 				if (*it)
 					colLeft.push_back(it - referenceTagCountLeftCurrent.begin());
 
+			//机器人所在的大致范围
 			//稍微有点繁琐了
 			vector<int> randData(4);
-			vector<vector<double>> PF_Scope(2, vector<double>(2));
-			double leftMax = referenceTag[colLeft[0]][0];
-			for (auto x : colLeft)
-				leftMax = max(leftMax, referenceTag[x][0]);
-			double rightMax = referenceTag[colRight[0]][0];
-			for (auto x : colRight)
-				rightMax = max(rightMax, referenceTag[x][0]);
-			PF_Scope[0][0] = max(leftMax, rightMax) - 160 + randData[0];
-			double leftMin = referenceTag[colLeft[0]][0];
-			for (auto x : colLeft)
-				leftMin = min(leftMin, referenceTag[x][0]);
-			double rightMin = referenceTag[colRight[0]][0];
-			for (auto x : colRight)
-				rightMin = min(rightMin, referenceTag[x][0]);
-			PF_Scope[0][1] = min(leftMin, rightMin) + 160 + randData[2];
-			leftMax = referenceTag[colLeft[0]][1];
-			for (auto x : colLeft)
-				leftMax = max(leftMax, referenceTag[x][1]);
-			rightMax = referenceTag[colRight[0]][1];
-			for (auto x : colRight)
-				rightMax = max(rightMax, referenceTag[x][1]);
-			PF_Scope[1][0] = max(leftMax, rightMax) - 160 + randData[1];
-			leftMin = referenceTag[colLeft[0]][1];
-			for (auto x : colLeft)
-				leftMin = min(leftMin, referenceTag[x][1]);
-			rightMin = referenceTag[colRight[0]][1];
-			for (auto x : colRight)
-				rightMin = min(rightMin, referenceTag[x][1]);
-			PF_Scope[1][1] = min(leftMin, rightMin) + 160 + randData[3];
+			vector<vector<double>> PF_Scope = calPF_Scope(referenceTag, randData, colLeft, colRight);
 
 			//依据该范围，生成粒子
 			for (int j = 0; j < PF_Count; ++j)
