@@ -551,31 +551,11 @@ int main()
 			mobileRobotPoseVisionRight[i][j] = myVisionCurrent_AGV[j][0];
 	for (int j = 0; j < odometerTimeDiff.size(); ++j)
 	{
-		int pointPre = 0;
-		int pointPso = 0;
-		bool preFlag = false;
-		bool psoFlag = false;
 		//先找到 里程计的时间 在 视觉时间序列中 的 前后两个最近 的位姿点
-		for (auto it = visionTimeDiff.begin(); it != visionTimeDiff.end(); ++it)
-		{
-			if ((*it) >= odometerTimeDiff[j] && !psoFlag)
-			{
-				pointPso = it - visionTimeDiff.begin();
-				psoFlag = true;
-			}
-			if (psoFlag)
-				break;
-		}
-		for (auto it = visionTimeDiff.end() - 1; it >= visionTimeDiff.begin(); --it)
-		{
-			if (((*it) <= odometerTimeDiff[j]) && !preFlag)
-			{
-				pointPre = it - visionTimeDiff.begin();
-				preFlag = true;
-			}
-			if (preFlag)
-				break;
-		}
+		bool preFlag = false;
+		int pointPre = findpre(visionTimeDiff, odometerTimeDiff, j, preFlag);
+		bool psoFlag = false;
+		int pointPso = findpso(visionTimeDiff, odometerTimeDiff, j, psoFlag);
 		if (psoFlag)
 			for (int i = 0; i < 4; ++i)
 				mobileRobotPoseVisionRight[j + odometerRightStartPoint - 1][i] = (odometerTimeDiff[j] - visionTimeDiff[pointPso]) / (visionTimeDiff[pointPre] - visionTimeDiff[pointPso]) * myVisionCurrent_AGV[i][pointPre] + (odometerTimeDiff[j] - visionTimeDiff[pointPre]) / (visionTimeDiff[pointPso] - visionTimeDiff[pointPre]) * myVisionCurrent_AGV[i][pointPso];
@@ -629,31 +609,11 @@ int main()
 			mobileRobotPoseVisionLeft[i][j] = myVisionCurrent_AGV[j][0];
 	for (int j = 0; j < odometerTimeDiff.size(); ++j)
 	{
-		int pointPre = 0;
-		int pointPso = 0;
-		bool preFlag = false;
-		bool psoFlag = false;
 		//先找到 里程计的时间 在 视觉时间序列中 的 前后两个最近 的位姿点
-		for (auto it = visionTimeDiff.begin(); it != visionTimeDiff.end(); ++it)
-		{
-			if ((*it) >= odometerTimeDiff[j] && !psoFlag)
-			{
-				pointPso = it - visionTimeDiff.begin();
-				psoFlag = true;
-			}
-			if (psoFlag)
-				break;
-		}
-		for (auto it = visionTimeDiff.end() - 1; it != visionTimeDiff.begin(); --it)
-		{
-			if ((*it <= odometerTimeDiff[j]) && !preFlag)
-			{
-				pointPre = it - visionTimeDiff.begin();
-				preFlag = true;
-			}
-			if (preFlag)
-				break;
-		}
+		bool preFlag = false;
+		int pointPre = findpre(visionTimeDiff, odometerTimeDiff, j, preFlag);
+		bool psoFlag = false;
+		int pointPso = findpso(visionTimeDiff, odometerTimeDiff, j, psoFlag);
 		if (psoFlag)
 			for (int i = 0; i < 4; ++i)
 				mobileRobotPoseVisionLeft[j + odometerLeftStartPoint - 1][i] = (odometerTimeDiff[j] - visionTimeDiff[pointPso]) / (visionTimeDiff[pointPre] - visionTimeDiff[pointPso]) * myVisionCurrent_AGV[i][pointPre] + (odometerTimeDiff[j] - visionTimeDiff[pointPre]) / (visionTimeDiff[pointPso] - visionTimeDiff[pointPre]) * myVisionCurrent_AGV[i][pointPso];
