@@ -75,9 +75,15 @@ double gaussrand(const double& mu, const double& sigma);
 double distance(const vector<double>& v1, const vector<double>& v2);
 //实现k-临近算法
 vector<int> knnsearch(vector<vector<double>> testData, vector<double> targetData, int k);
+//判断点是否落入多边形内
 vector<bool> inpolygon(const vector<vector<double>>& pointData, const vector<int>& optionalTagFlag, const vector<vector<double>>& testData,const int& numOfTag);
 //判断点是否落入多边形内
 vector<bool> inpolygon(const vector<double>& pointX, const vector<double>& pointY, const vector<double>& lineX, const vector<double>& lineY);
+//找到里程计的时间在视觉时间序列中的前后两个最近的位姿点
+int findpso(const vector<double>& visionTimeDiff, const vector<double>& odometerTimeDiff, const int& index, bool& flag);
+int findpre(const vector<double>& visionTimeDiff, const vector<double>& odometerTimeDiff, const int& index, bool& flag);
+//计算机器人所在大致范围（用于初始化粒子）
+vector<vector<double>> calPF_Scope(vector<vector<double>>& referenceTag, vector<int>& randData, vector<int>& colLeft, vector<int>& colRight);
 int main()
 {
 	//系统数据设定
@@ -2302,4 +2308,73 @@ vector<bool> inpolygon(const vector<vector<double>>& pointData, const vector<int
 		result[i] = flag;
 	}
 	return result;
+}
+//找到里程计的时间在视觉时间序列中的前后两个最近的位姿点
+int findpso(const vector<double>& visionTimeDiff, const vector<double>& odometerTimeDiff, const int& index, bool& flag)
+{
+	int point = 0;
+	for (auto it = visionTimeDiff.begin(); it != visionTimeDiff.end(); ++it)
+	{
+		if ((*it) >= odometerTimeDiff[index] && !flag)
+		{
+			point = it - visionTimeDiff.begin();
+			flag = true;
+		}
+		if (flag)
+			break;
+	}
+	return point;
+}
+int findpre(const vector<double>& visionTimeDiff, const vector<double>& odometerTimeDiff, const int& index, bool& flag)
+{
+	int point = 0;
+	for (auto it = visionTimeDiff.end() - 1; it >= visionTimeDiff.begin(); --it)
+	{
+		if (((*it) <= odometerTimeDiff[index]) && !flag)
+		{
+			point = it - visionTimeDiff.begin();
+			flag = true;
+		}
+		if (flag)
+			break;
+	}
+	return point;
+}
+//计算机器人所在大致范围（用于初始化粒子）
+vector<vector<double>> calPF_Scope(vector<vector<double>>& referenceTag, vector<int>& randData, vector<int>& colLeft, vector<int>& colRight)
+{
+	vector<vector<double>> PF_Scope(2, vector<double>(2));
+	double leftMax = referenceTag[colLeft[0]][0];
+	for (auto x : colLeft)
+		leftMax = max(leftMax, referenceTag[x][0]);
+	double rightMax = referenceTag[colRight[0]][0];
+	for (auto x : colRight)
+		rightMax = max(rightMax, referenceTag[x][0]);
+	PF_Scope[0][0] = max(leftMax, rightMax) - 160 + randData[0];
+
+	double leftMin = referenceTag[colLeft[0]][0];
+	for (auto x : colLeft)
+		leftMin = min(leftMin, referenceTag[x][0]);
+	double rightMin = referenceTag[colRight[0]][0];
+	for (auto x : colRight)
+		rightMin = min(rightMin, referenceTag[x][0]);
+	PF_Scope[0][1] = min(leftMin, rightMin) + 160 + randData[2];
+
+	leftMax = referenceTag[colLeft[0]][1];
+	for (auto x : colLeft)
+		leftMax = max(leftMax, referenceTag[x][1]);
+	rightMax = referenceTag[colRight[0]][1];
+	for (auto x : colRight)
+		rightMax = max(rightMax, referenceTag[x][1]);
+	PF_Scope[1][0] = max(leftMax, rightMax) - 160 + randData[1];
+
+	leftMin = referenceTag[colLeft[0]][1];
+	for (auto x : colLeft)
+		leftMin = min(leftMin, referenceTag[x][1]);
+	rightMin = referenceTag[colRight[0]][1];
+	for (auto x : colRight)
+		rightMin = min(rightMin, referenceTag[x][1]);
+	PF_Scope[1][1] = min(leftMin, rightMin) + 160 + randData[3];
+
+	return PF_Scope;
 }
